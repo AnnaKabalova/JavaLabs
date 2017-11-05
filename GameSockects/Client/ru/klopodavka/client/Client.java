@@ -1,5 +1,6 @@
 package ru.klopodavka.client;
 
+import com.sun.corba.se.spi.logging.CORBALogDomains;
 import org.jetbrains.annotations.Contract;
 import ru.klopodavka.network.TCPConnection;
 import ru.klopodavka.network.TCPConnectionListener;
@@ -8,6 +9,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.util.Random;
 import java.util.regex.Matcher;
@@ -26,6 +29,7 @@ public class Client extends JFrame implements ActionListener, TCPConnectionListe
     private final JTextField fieldInput = new JTextField();
     private TCPConnection connection;
     private final Color gameColor;
+    private boolean flagStartGame;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
@@ -38,7 +42,12 @@ public class Client extends JFrame implements ActionListener, TCPConnectionListe
 
     private Client() {
         Random rand = new Random();
-        gameColor = new Color(rand.nextInt(255), rand.nextInt(255), rand.nextInt(255));
+        Color initColor = Color.BLACK;
+        while(initColor.equals(Color.BLACK) || initColor.equals(Color.WHITE)) {
+            initColor = new Color(rand.nextInt(255), rand.nextInt(255), rand.nextInt(255));
+        }
+        gameColor = initColor;
+        flagStartGame = true;
 
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setSize(WIDTH, HEIGHT);
@@ -52,6 +61,7 @@ public class Client extends JFrame implements ActionListener, TCPConnectionListe
         for(int y=0; y<GAME_FIELD_HEIGHT; y++){
             for(int x=0; x<GAME_FIELD_WIDTH; x++){
                 gameButton[x][y] = new JButton(String.valueOf(k));
+                gameButton[x][y].setBackground(Color.WHITE);
                 gridPanel.add(gameButton[x][y]);
                 k++;
             }
@@ -74,13 +84,51 @@ public class Client extends JFrame implements ActionListener, TCPConnectionListe
         String message = fieldInput.getText();
         if (message.equals("")) return;
         fieldInput.setText(null);
-
         int num = Integer.parseInt(message);
         int[] coord = NumberToCoord(num);
-        gameButton[coord[0]][coord[1]].setBackground(gameColor);
 
-        String resultMessage = gameColor.getRed() + ":" + gameColor.getGreen() + ":" + gameColor.getBlue() + " " + num;
+        if (gameButton[coord[0]][coord[1]].getBackground().equals(Color.BLACK)) {
+            JOptionPane.showMessageDialog(Client.this, "Вы не можете ходить " +
+                    "по раздавленным клопам");
+            return;
+        }
+
+        if (!flagStartGame) {
+            if (!checkStep(coord[0], coord[1])) {
+                JOptionPane.showMessageDialog(Client.this, "Вы не можете ходить вне " +
+                        "своей линии подключения");
+                return;
+            }
+        } else { flagStartGame = false; }
+
+        String resultMessage;
+        Color currentButton = gameButton[coord[0]][coord[1]].getBackground();
+        if(!currentButton.equals(gameColor) && !currentButton.equals(Color.WHITE)) {
+            gameButton[coord[0]][coord[1]].setBackground(Color.BLACK);
+            resultMessage = "0:0:0 ";
+        } else {
+            gameButton[coord[0]][coord[1]].setBackground(gameColor);
+            resultMessage = gameColor.getRed() + ":" + gameColor.getGreen() + ":" + gameColor.getBlue() + " ";
+        }
+        resultMessage += num;
         connection.sendString(resultMessage);
+    }
+
+    @Contract(pure = true)
+    private boolean checkStep(int x, int y) {
+        boolean flag = false;
+        for (int i = -1; i < 2; i++) {
+            for (int j = -1; j < 2; j++) {
+                if ((x+i > 0) && (x+i < GAME_FIELD_WIDTH) && (y+j > 0) && (y+j < GAME_FIELD_HEIGHT)) {
+                    if(gameButton[x+i][y+j].getBackground().equals(gameColor)) {
+                        flag = true;
+                        break;
+                    }
+                }
+            }
+            if (flag) break;
+        }
+        return flag;
     }
 
     @Override
@@ -122,9 +170,7 @@ public class Client extends JFrame implements ActionListener, TCPConnectionListe
                 try {
                     tempColor = new Color(res[0], res[1], res[2]);
                     gameButton[coord[0]][coord[1]].setBackground(tempColor);
-                } catch (IllegalArgumentException e) {
-                    System.out.println("Not identified color");
-                } catch (ArrayIndexOutOfBoundsException e) {
+                } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
                     System.out.println("Not identified color");
                 }
 
@@ -163,10 +209,9 @@ public class Client extends JFrame implements ActionListener, TCPConnectionListe
         Pattern r = Pattern.compile(pattern);
         Matcher m = r.matcher(message);
         if (m.find( )) {
-            result[0] = Integer.parseInt(m.group(1));
-            result[1] = Integer.parseInt(m.group(2));
-            result[2] = Integer.parseInt(m.group(3));
-            result[3] = Integer.parseInt(m.group(4));
+            for(int i = 0; i < 4; i++) {
+                result[i] = Integer.parseInt(m.group(i+1));
+            }
         }
         return result;
     }
