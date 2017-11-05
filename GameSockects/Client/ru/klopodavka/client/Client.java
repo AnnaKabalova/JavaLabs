@@ -7,16 +7,13 @@ import ru.klopodavka.network.TCPConnectionListener;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 import java.io.IOException;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Client extends JFrame implements ActionListener, TCPConnectionListener {
+public class Client extends JFrame implements MouseListener, TCPConnectionListener {
 
     private static final String IP_ADDRES = "localhost";
     private static final int PORT = 1793;
@@ -26,7 +23,6 @@ public class Client extends JFrame implements ActionListener, TCPConnectionListe
     private static final int GAME_FIELD_HEIGHT = 10;
 
     private final JButton[][] gameButton;
-    private final JTextField fieldInput = new JTextField();
     private TCPConnection connection;
     private final Color gameColor;
     private boolean flagStartGame;
@@ -61,6 +57,7 @@ public class Client extends JFrame implements ActionListener, TCPConnectionListe
         for(int y=0; y<GAME_FIELD_HEIGHT; y++){
             for(int x=0; x<GAME_FIELD_WIDTH; x++){
                 gameButton[x][y] = new JButton(String.valueOf(k));
+                gameButton[x][y].addMouseListener(this);
                 gameButton[x][y].setBackground(Color.WHITE);
                 gridPanel.add(gameButton[x][y]);
                 k++;
@@ -68,8 +65,6 @@ public class Client extends JFrame implements ActionListener, TCPConnectionListe
         }
 
         add(gridPanel, BorderLayout.CENTER);
-        fieldInput.addActionListener(this);
-        add(fieldInput, BorderLayout.SOUTH);
 
         setVisible(true);
         try {
@@ -80,38 +75,39 @@ public class Client extends JFrame implements ActionListener, TCPConnectionListe
     }
 
     @Override
-    public void actionPerformed(ActionEvent e) {
-        String message = fieldInput.getText();
-        if (message.equals("")) return;
-        fieldInput.setText(null);
-        int num = Integer.parseInt(message);
-        int[] coord = NumberToCoord(num);
+    public void mouseClicked(MouseEvent e) {
+        for(int y = 0; y < GAME_FIELD_HEIGHT; y++) {
+            for (int x = 0; x < GAME_FIELD_WIDTH; x++) {
+                if(e.getSource().equals(gameButton[x][y])) {
 
-        if (gameButton[coord[0]][coord[1]].getBackground().equals(Color.BLACK)) {
-            JOptionPane.showMessageDialog(Client.this, "Вы не можете ходить " +
-                    "по раздавленным клопам");
-            return;
-        }
+                    if (gameButton[x][y].getBackground().equals(Color.BLACK)) {
+                        JOptionPane.showMessageDialog(Client.this, "Вы не можете ходить " +
+                                "по раздавленным клопам");
+                        return;
+                    }
 
-        if (!flagStartGame) {
-            if (!checkStep(coord[0], coord[1])) {
-                JOptionPane.showMessageDialog(Client.this, "Вы не можете ходить вне " +
-                        "своей линии подключения");
-                return;
+                    if (!flagStartGame) {
+                        if (!checkStep(x, y)) {
+                            JOptionPane.showMessageDialog(Client.this, "Вы не можете ходить вне " +
+                                    "своей линии подключения");
+                            return;
+                        }
+                    } else { flagStartGame = false; }
+
+                    String resultMessage;
+                    Color currentButton = gameButton[x][y].getBackground();
+                    if(!currentButton.equals(gameColor) && !currentButton.equals(Color.WHITE)) {
+                        gameButton[x][y].setBackground(Color.BLACK);
+                        resultMessage = "0:0:0 ";
+                    } else {
+                        gameButton[x][y].setBackground(gameColor);
+                        resultMessage = gameColor.getRed() + ":" + gameColor.getGreen() + ":" + gameColor.getBlue() + " ";
+                    }
+                    resultMessage += CoordToNumber(x, y);
+                    connection.sendString(resultMessage);
+                }
             }
-        } else { flagStartGame = false; }
-
-        String resultMessage;
-        Color currentButton = gameButton[coord[0]][coord[1]].getBackground();
-        if(!currentButton.equals(gameColor) && !currentButton.equals(Color.WHITE)) {
-            gameButton[coord[0]][coord[1]].setBackground(Color.BLACK);
-            resultMessage = "0:0:0 ";
-        } else {
-            gameButton[coord[0]][coord[1]].setBackground(gameColor);
-            resultMessage = gameColor.getRed() + ":" + gameColor.getGreen() + ":" + gameColor.getBlue() + " ";
         }
-        resultMessage += num;
-        connection.sendString(resultMessage);
     }
 
     @Contract(pure = true)
@@ -215,4 +211,16 @@ public class Client extends JFrame implements ActionListener, TCPConnectionListe
         }
         return result;
     }
+
+    @Override
+    public void mousePressed(MouseEvent e) { }
+
+    @Override
+    public void mouseReleased(MouseEvent e) { }
+
+    @Override
+    public void mouseEntered(MouseEvent e) { }
+
+    @Override
+    public void mouseExited(MouseEvent e) { }
 }
