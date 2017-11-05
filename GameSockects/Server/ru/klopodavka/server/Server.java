@@ -12,7 +12,6 @@ import java.util.Random;
 public class Server implements TCPConnectionListener {
 
     private final ArrayList<TCPConnection> connections = new ArrayList<>();
-    private final Random rand = new Random();
     private final ArrayList<String> saveMessage = new ArrayList<>();
 
     public static void main(String[] args) {
@@ -46,6 +45,7 @@ public class Server implements TCPConnectionListener {
 
     @Override
     public synchronized void onRecieveString(TCPConnection tcpConnection, String value) {
+        int index = connections.indexOf(tcpConnection);
         saveMessage.add(value);
         sendToAllConnections(value);
     }
@@ -53,7 +53,9 @@ public class Server implements TCPConnectionListener {
     @Override
     public synchronized void onDisconnect(TCPConnection tcpConnection) {
         connections.remove(tcpConnection);
-        if (connections.size() == 0) saveMessage.clear();
+        if (connections.size() == 0) {
+            saveMessage.clear();
+        }
         sendToAllConnections("Client disconnected: " + tcpConnection);
     }
 
