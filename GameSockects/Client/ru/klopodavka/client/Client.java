@@ -1,6 +1,5 @@
 package ru.klopodavka.client;
 
-import com.sun.corba.se.spi.logging.CORBALogDomains;
 import org.jetbrains.annotations.Contract;
 import ru.klopodavka.network.TCPConnection;
 import ru.klopodavka.network.TCPConnectionListener;
@@ -17,8 +16,8 @@ public class Client extends JFrame implements MouseListener, TCPConnectionListen
 
     private static final String IP_ADDRES = "localhost";
     private static final int PORT = 1793;
-    private static final int WIDTH = 1000;
-    private static final int HEIGHT = 700;
+    private static final int WIDTH = 800;
+    private static final int HEIGHT = 600;
     private static final int GAME_FIELD_WIDTH = 15;
     private static final int GAME_FIELD_HEIGHT = 10;
 
@@ -53,14 +52,12 @@ public class Client extends JFrame implements MouseListener, TCPConnectionListen
         JPanel gridPanel = new JPanel();
         gridPanel.setLayout(new GridLayout(GAME_FIELD_HEIGHT, GAME_FIELD_WIDTH, 3, 3));
         gameButton = new JButton[GAME_FIELD_WIDTH][GAME_FIELD_HEIGHT];
-        int k = 0;
         for(int y=0; y<GAME_FIELD_HEIGHT; y++){
             for(int x=0; x<GAME_FIELD_WIDTH; x++){
-                gameButton[x][y] = new JButton(String.valueOf(k));
+                gameButton[x][y] = new JButton();
                 gameButton[x][y].addMouseListener(this);
                 gameButton[x][y].setBackground(Color.WHITE);
                 gridPanel.add(gameButton[x][y]);
-                k++;
             }
         }
 
@@ -115,7 +112,7 @@ public class Client extends JFrame implements MouseListener, TCPConnectionListen
         boolean flag = false;
         for (int i = -1; i < 2; i++) {
             for (int j = -1; j < 2; j++) {
-                if ((x+i > 0) && (x+i < GAME_FIELD_WIDTH) && (y+j > 0) && (y+j < GAME_FIELD_HEIGHT)) {
+                if ((x+i >= 0) && (x+i < GAME_FIELD_WIDTH) && (y+j >= 0) && (y+j < GAME_FIELD_HEIGHT)) {
                     if(gameButton[x+i][y+j].getBackground().equals(gameColor)) {
                         flag = true;
                         break;
