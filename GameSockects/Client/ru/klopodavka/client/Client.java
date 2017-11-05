@@ -1,30 +1,31 @@
 package ru.klopodavka.client;
 
+import org.jetbrains.annotations.Contract;
 import ru.klopodavka.network.TCPConnection;
 import ru.klopodavka.network.TCPConnectionListener;
 
 import javax.swing.*;
-import javax.swing.border.Border;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Client extends JFrame implements ActionListener, TCPConnectionListener {
 
     private static final String IP_ADDRES = "localhost";
     private static final int PORT = 1793;
-    private static final int WIDTH = 800;
-    private static final int HEIGHT = 600;
+    private static final int WIDTH = 1000;
+    private static final int HEIGHT = 700;
     private static final int GAME_FIELD_WIDTH = 15;
     private static final int GAME_FIELD_HEIGHT = 10;
 
-//    private final JTextArea log = new JTextArea();
-    private final JPanel gridPanel = new JPanel();
     private final JButton[][] gameButton;
-    private final JTextField fieldNickName = new JTextField("Login");
     private final JTextField fieldInput = new JTextField();
     private TCPConnection connection;
+    private final Color gameColor;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
@@ -36,28 +37,28 @@ public class Client extends JFrame implements ActionListener, TCPConnectionListe
     }
 
     private Client() {
+        Random rand = new Random();
+        gameColor = new Color(rand.nextInt(255), rand.nextInt(255), rand.nextInt(255));
+
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setSize(WIDTH, HEIGHT);
         setLocationRelativeTo(null);
         setAlwaysOnTop(true);
 
+        JPanel gridPanel = new JPanel();
         gridPanel.setLayout(new GridLayout(GAME_FIELD_HEIGHT, GAME_FIELD_WIDTH, 3, 3));
         gameButton = new JButton[GAME_FIELD_WIDTH][GAME_FIELD_HEIGHT];
+        int k = 0;
         for(int y=0; y<GAME_FIELD_HEIGHT; y++){
             for(int x=0; x<GAME_FIELD_WIDTH; x++){
-                gameButton[x][y]=new JButton();
+                gameButton[x][y] = new JButton(String.valueOf(k));
                 gridPanel.add(gameButton[x][y]);
+                k++;
             }
         }
 
         add(gridPanel, BorderLayout.CENTER);
-
-//        log.setEditable(false);
-//        log.setLineWrap(true);
-//        add(log, BorderLayout.CENTER);
-
         fieldInput.addActionListener(this);
-        add(fieldNickName, BorderLayout.NORTH);
         add(fieldInput, BorderLayout.SOUTH);
 
         setVisible(true);
@@ -73,7 +74,13 @@ public class Client extends JFrame implements ActionListener, TCPConnectionListe
         String message = fieldInput.getText();
         if (message.equals("")) return;
         fieldInput.setText(null);
-        connection.sendString(fieldNickName.getText() + ": " + message);
+
+        int num = Integer.parseInt(message);
+        int[] coord = NumberToCoord(num);
+        gameButton[coord[0]][coord[1]].setBackground(gameColor);
+
+        String resultMessage = gameColor.getRed() + ":" + gameColor.getGreen() + ":" + gameColor.getBlue() + " " + num;
+        connection.sendString(resultMessage);
     }
 
     @Override
@@ -83,7 +90,7 @@ public class Client extends JFrame implements ActionListener, TCPConnectionListe
 
     @Override
     public void onRecieveString(TCPConnection tcpConnection, String value) {
-        printMessage(value);
+        printGrid(value);
     }
 
     @Override
@@ -100,9 +107,67 @@ public class Client extends JFrame implements ActionListener, TCPConnectionListe
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-//                log.append(message + "\n");
-//                log.setCaretPosition(log.getDocument().getLength());
+                System.out.println(message);
             }
         });
+    }
+
+    private synchronized void printGrid(String message) {
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                int[] res = getRegex(message);
+                int[] coord = NumberToCoord(res[3]);
+                Color tempColor = null;
+                try {
+                    tempColor = new Color(res[0], res[1], res[2]);
+                    gameButton[coord[0]][coord[1]].setBackground(tempColor);
+                } catch (IllegalArgumentException e) {
+                    System.out.println("Not identified color");
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Not identified color");
+                }
+
+            }
+        });
+    }
+
+    @Contract(pure = true)
+    private int CoordToNumber(int x, int y) {
+        return x + y * GAME_FIELD_WIDTH;
+    }
+
+    @Contract(pure = true)
+    private int[] NumberToCoord(int num) {
+        int coord[] = new int[2];
+        int x = 0, y = 0, curr = 0;
+        boolean flag = false;
+        for(y=0; y<GAME_FIELD_HEIGHT; y++){
+            for(x=0; x<GAME_FIELD_WIDTH; x++){
+                if (curr == num) {
+                    flag = true;
+                    break;
+                }
+                curr++;
+            }
+            if (flag) break;
+        }
+        coord[0] = x; coord[1] = y;
+        return coord;
+    }
+
+    private int[] getRegex(String message) {
+        int[] result = new int[4];
+        result[0] = result[1] = result[2] = result[3] = -1;
+        String pattern = "([0-9]*):([0-9]*):([0-9]*) ([0-9]*)";
+        Pattern r = Pattern.compile(pattern);
+        Matcher m = r.matcher(message);
+        if (m.find( )) {
+            result[0] = Integer.parseInt(m.group(1));
+            result[1] = Integer.parseInt(m.group(2));
+            result[2] = Integer.parseInt(m.group(3));
+            result[3] = Integer.parseInt(m.group(4));
+        }
+        return result;
     }
 }
